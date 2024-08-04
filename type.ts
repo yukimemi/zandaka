@@ -49,7 +49,7 @@ export const MutualFundSchema = z.object({
 });
 export type MutualFund = z.infer<typeof MutualFundSchema>;
 
-export const PointSchema = z.object({
+export const SalePointSchema = z.object({
   name: z.string(),
   type: z.string(),
   pointsOrMiles: z.preprocess(extractNumber, z.number()),
@@ -58,4 +58,4 @@ export const PointSchema = z.object({
   expirationDate: z.string(),
   financialInstitution: z.string(),
 });
-export type Point = z.infer<typeof PointSchema>;
+export type SalePoint = z.infer<typeof SalePointSchema>;
