@@ -84,6 +84,18 @@ const depositsParsed = deposits.map((v: Record<string, string>): Deposit => {
   return DepositSchema.parse(deposit);
 });
 console.log({ depositsParsed });
+const aggregatedDeposits = depositsParsed.reduce((acc: Deposit[], deposit: Deposit) => {
+  const existingDeposit = acc.find((item) =>
+    item.financialInstitution === deposit.financialInstitution
+  );
+  if (existingDeposit) {
+    existingDeposit.price += deposit.price;
+  } else {
+    acc.push({ ...deposit });
+  }
+  return acc;
+}, []);
+console.log({ aggregatedDeposits });
 
 // console.log({ physicalStocks });
 const physicalStocksParsed = physicalStocks.map((v: Record<string, string>): PhysicalStock => {
@@ -103,6 +115,24 @@ const physicalStocksParsed = physicalStocks.map((v: Record<string, string>): Phy
   return PhysicalStockSchema.parse(physicalStock);
 });
 console.log({ physicalStocksParsed });
+const aggregatedStocks = physicalStocksParsed.reduce(
+  (acc: PhysicalStock[], stock: PhysicalStock) => {
+    const existingStock = acc.find((item) => item.code === stock.code);
+    if (existingStock) {
+      existingStock.quantity += stock.quantity;
+      existingStock.valuationAmount += stock.valuationAmount;
+      existingStock.previousDayDifference += stock.previousDayDifference;
+      existingStock.valuationGainLoss += stock.valuationGainLoss;
+      existingStock.valuationGainLossRate =
+        (existingStock.valuationGainLoss / existingStock.valuationAmount) * 100;
+    } else {
+      acc.push({ ...stock });
+    }
+    return acc;
+  },
+  [],
+);
+console.log({ aggregatedStocks });
 
 // console.log({ mutualFunds });
 const mutualFundsParsed = mutualFunds.map((v: Record<string, string>): MutualFund => {
@@ -120,6 +150,21 @@ const mutualFundsParsed = mutualFunds.map((v: Record<string, string>): MutualFun
   return MutualFundSchema.parse(mutualFund);
 });
 console.log({ mutualFundsParsed });
+const aggregatedFunds = mutualFundsParsed.reduce((acc: MutualFund[], fund: MutualFund) => {
+  const existingFund = acc.find((item) => item.name === fund.name);
+  if (existingFund) {
+    existingFund.quantity += fund.quantity;
+    existingFund.valuationAmount += fund.valuationAmount;
+    existingFund.previousDayDifference += fund.previousDayDifference;
+    existingFund.valuationGainLoss += fund.valuationGainLoss;
+    existingFund.valuationGainLossRate =
+      (existingFund.valuationGainLoss / existingFund.valuationAmount) * 100;
+  } else {
+    acc.push({ ...fund });
+  }
+  return acc;
+}, []);
+console.log({ aggregatedFunds });
 
 // console.log({ salePoints });
 const salePointsParsed = salePoints.map((v: Record<string, string>): SalePoint => {
@@ -135,6 +180,17 @@ const salePointsParsed = salePoints.map((v: Record<string, string>): SalePoint =
   return SalePointSchema.parse(salePoint);
 });
 console.log({ salePointsParsed });
+const aggregatedSalePoints = salePointsParsed.reduce((acc: SalePoint[], point: SalePoint) => {
+  const existingPoint = acc.find((item) => item.name === point.name);
+  if (existingPoint) {
+    existingPoint.pointsOrMiles += point.pointsOrMiles;
+    existingPoint.currentValue += point.currentValue;
+  } else {
+    acc.push({ ...point });
+  }
+  return acc;
+}, []);
+console.log({ aggregatedSalePoints });
 
 const now = new Date();
 
@@ -167,6 +223,16 @@ for (const deposit of depositsParsed) {
     .timestamp(now);
   writeApi.writePoint(point);
 }
+// Point aggregatedDeposits
+for (const aggregatedDeposit of aggregatedDeposits) {
+  const point = new Point("aggregated_deposits")
+    .tag("name", aggregatedDeposit.name)
+    .floatField("price", aggregatedDeposit.price)
+    .tag("financial_institution", aggregatedDeposit.financialInstitution)
+    .timestamp(now);
+  writeApi.writePoint(point);
+}
+
 // Point physicalStocks
 for (const physicalStock of physicalStocksParsed) {
   const point = new Point("physical_stocks")
@@ -184,6 +250,20 @@ for (const physicalStock of physicalStocksParsed) {
     .timestamp(now);
   writeApi.writePoint(point);
 }
+// Point aggregatedStocks
+for (const aggregatedStock of aggregatedStocks) {
+  const point = new Point("aggregated_stocks")
+    .tag("name", aggregatedStock.name)
+    .floatField("quantity", aggregatedStock.quantity)
+    .floatField("valuation_amount", aggregatedStock.valuationAmount)
+    .floatField("previous_day_difference", aggregatedStock.previousDayDifference)
+    .floatField("valuation_gain_loss", aggregatedStock.valuationGainLoss)
+    .floatField("valuation_gain_loss_rate", aggregatedStock.valuationGainLossRate)
+    .tag("financial_institution", aggregatedStock.financialInstitution)
+    .timestamp(now);
+  writeApi.writePoint(point);
+}
+
 // Point mutualFunds
 for (const mutualFund of mutualFundsParsed) {
   const point = new Point("mutual_funds")
@@ -199,6 +279,20 @@ for (const mutualFund of mutualFundsParsed) {
     .timestamp(now);
   writeApi.writePoint(point);
 }
+// Point aggregatedFunds
+for (const aggregatedFund of aggregatedFunds) {
+  const point = new Point("aggregated_funds")
+    .tag("name", aggregatedFund.name)
+    .floatField("quantity", aggregatedFund.quantity)
+    .floatField("valuation_amount", aggregatedFund.valuationAmount)
+    .floatField("previous_day_difference", aggregatedFund.previousDayDifference)
+    .floatField("valuation_gain_loss", aggregatedFund.valuationGainLoss)
+    .floatField("valuation_gain_loss_rate", aggregatedFund.valuationGainLossRate)
+    .tag("financial_institution", aggregatedFund.financialInstitution)
+    .timestamp(now);
+  writeApi.writePoint(point);
+}
+
 // Point salePoints
 for (const salePoint of salePointsParsed) {
   const point = new Point("sale_points")
@@ -212,6 +306,20 @@ for (const salePoint of salePointsParsed) {
     .timestamp(now);
   writeApi.writePoint(point);
 }
+// Point aggregatedSalePoints
+for (const aggregatedSalePoint of aggregatedSalePoints) {
+  const point = new Point("aggregated_sale_points")
+    .tag("name", aggregatedSalePoint.name)
+    .tag("type", aggregatedSalePoint.type)
+    .floatField("points_or_miles", aggregatedSalePoint.pointsOrMiles)
+    .floatField("conversion_rate", aggregatedSalePoint.conversionRate)
+    .floatField("current_value", aggregatedSalePoint.currentValue)
+    .tag("expiration_date", aggregatedSalePoint.expirationDate)
+    .tag("financial_institution", aggregatedSalePoint.financialInstitution)
+    .timestamp(now);
+  writeApi.writePoint(point);
+}
+
 await writeApi.flush();
 await writeApi.close();
 
