@@ -10,7 +10,6 @@ import type {
   MutualFund,
   PhysicalStock,
   SalePoint,
-  Sony,
   TotalAsset,
 } from "./type.ts";
 import {
@@ -18,6 +17,8 @@ import {
   MutualFundSchema,
   PhysicalStockSchema,
   SalePointSchema,
+  SmtbAssetSchema,
+  SmtbSchema,
   SonySchema,
   TotalAssetSchema,
 } from "./type.ts";
@@ -30,10 +31,60 @@ import { InfluxDB, Point } from "npm:@influxdata/influxdb-client";
 const headless = true;
 const signInPageMF = "https://moneyforward.com/me";
 const signInPageSony = "https://cs.sonylife.co.jp/lpv/yf1p/sca/PYFW1011.seam";
+const signInPageSmtb = "https://life.smtb.jp/Lifeguide/faces/xhtml/biz/F69914010/G699140010.xhtml";
 
 const browser = await launch({
   headless,
 });
+
+// SMTB
+const pageSmtb = await browser.newPage(signInPageSmtb);
+await signinSmtb(pageSmtb);
+
+await delay(30000);
+
+const anatanoSisanZandakaLink = await pageSmtb.$(
+  `#anataNoGenzaZandaka a.subbtn.aanalytics145314069`,
+);
+console.log({ anatanoSisanZandakaLink });
+await Promise.all([
+  pageSmtb.waitForNavigation(),
+  anatanoSisanZandakaLink!.click(),
+]);
+
+const anatanoSisanZandakaTables = tabletojson.convert(
+  await pageSmtb.evaluate(() => {
+    return document.body.innerHTML;
+  }),
+);
+console.log({ anatanoSisanZandakaTables });
+
+const smTbZandaka = SmtbSchema.parse(anatanoSisanZandakaTables[0].reduce((acc: Record<string, string>, v: Record<string, string>) => {
+  if (v.項目_4.includes("現在の残高（資産評価額合計）")) {
+    acc["currentBalance"] = v.利回り;
+  } else if (v.項目_4.includes("拠出金の合計額")) {
+    acc["totalContributions"] = v.利回り;
+  } else if (v.項目_4.includes("（うち事業主掛金）")) {
+    acc["employerContributions"] = v.利回り;
+  } else if (v.項目_4.includes("（うち加入者掛金）")) {
+    acc["employeeContributions"] = v.利回り;
+  } else if (v.項目_4.includes("評価損益")) {
+    acc["profitLoss"] = v.利回り;
+  } else if (v.項目_4.includes("運用利回り速報値（初回拠出月来）")) {
+    acc["investmentReturn"] = v.利回り;
+  }
+  return acc;
+}, {} as Record<string, string>));
+console.log({ smTbZandaka });
+
+const smTbAssets = anatanoSisanZandakaTables[1].map((v: Record<string, string>) =>
+  SmtbAssetSchema.parse({
+    assetClass: v.資産クラス,
+    assetValue: v.資産評価額,
+    assetAllocation: v.資産配分,
+  })
+);
+console.log({ smTbAssets });
 
 // Sony
 const pageSony = await browser.newPage(signInPageSony);
@@ -446,6 +497,28 @@ for (const s of sony) {
   writeApi.writePoint(point);
 }
 
+// Point smTbZandaka
+const smTbZandakaPoint = new Point("smtb_zandaka")
+  .tag("name", "確定拠出年金")
+  .floatField("current_balance", smTbZandaka.currentBalance)
+  .floatField("total_contributions", smTbZandaka.totalContributions)
+  .floatField("employer_contributions", smTbZandaka.employerContributions)
+  .floatField("employee_contributions", smTbZandaka.employeeContributions)
+  .floatField("profit_loss", smTbZandaka.profitLoss)
+  .floatField("investment_return", smTbZandaka.investmentReturn)
+  .timestamp(now);
+writeApi.writePoint(smTbZandakaPoint);
+
+// Point smTbAssets
+for (const smTbAsset of smTbAssets) {
+  const point = new Point("smtb_assets")
+    .tag("name", smTbAsset.name)
+    .floatField("assetValue", smTbAsset.assetValue)
+    .floatField("assetAllocation", smTbAsset.assetAllocation)
+    .timestamp(now);
+  writeApi.writePoint(point);
+}
+
 await writeApi.flush();
 await writeApi.close();
 
@@ -506,5 +579,31 @@ async function signinSony(page: Page): Promise<void> {
   await Promise.all([
     page.waitForNavigation(),
     submitButton!.click(),
+  ]);
+}
+
+async function signinSmtb(page: Page): Promise<void> {
+  const toppage = await page.screenshot();
+  Deno.writeFileSync("toppage_smtb.png", toppage);
+
+  const user = z.string().parse(Deno.env.get("SMTB_USER"));
+  const pass = z.string().parse(Deno.env.get("SMTB_PASS"));
+
+  const userInput = await page.$(`input[id="f_personal:kojinId"]`);
+  await userInput!.type(user, { delay: 10 });
+
+  const passInput = await page.$(`input[id="f_personal:kojinPw"]`);
+  await passInput!.type(pass, { delay: 10 });
+
+  const submitButton = await page.$(`input[value="ログオン"]`);
+  await Promise.all([
+    page.waitForNavigation(),
+    submitButton!.click(),
+  ]);
+
+  const submitButton2 = await page.$(`input[type="SUBMIT"]`);
+  await Promise.all([
+    page.waitForNavigation(),
+    submitButton2!.click(),
   ]);
 }

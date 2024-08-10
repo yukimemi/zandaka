@@ -65,3 +65,20 @@ export const SonySchema = z.object({
   price: z.preprocess(extractNumber, z.number()),
 });
 export type Sony = z.infer<typeof SonySchema>;
+
+export const SmtbSchema = z.object({
+  currentBalance: z.preprocess(extractNumber, z.number()),
+  totalContributions: z.preprocess(extractNumber, z.number()),
+  employerContributions: z.preprocess(extractNumber, z.number()),
+  employeeContributions: z.preprocess(extractNumber, z.number()),
+  profitLoss: z.preprocess(extractNumber, z.number()),
+  investmentReturn: z.preprocess(extractNumber, z.number()),
+});
+export type Smtb = z.infer<typeof SmtbSchema>;
+
+export const SmtbAssetSchema = z.object({
+  assetClass: z.string(),
+  assetValue: z.preprocess(extractNumber, z.number()),
+  assetAllocation: z.preprocess(extractNumber, z.number()),
+});
+export type SmtbAsset = z.infer<typeof SmtbAssetSchema>;
