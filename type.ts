@@ -59,3 +59,9 @@ export const SalePointSchema = z.object({
   financialInstitution: z.string(),
 });
 export type SalePoint = z.infer<typeof SalePointSchema>;
+
+export const SonySchema = z.object({
+  name: z.string(),
+  price: z.preprocess(extractNumber, z.number()),
+});
+export type Sony = z.infer<typeof SonySchema>;

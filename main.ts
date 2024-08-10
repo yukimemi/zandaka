@@ -5,12 +5,20 @@
 // =============================================================================
 
 import "@std/dotenv/load";
-import type { Deposit, MutualFund, PhysicalStock, SalePoint, TotalAsset } from "./type.ts";
+import type {
+  Deposit,
+  MutualFund,
+  PhysicalStock,
+  SalePoint,
+  Sony,
+  TotalAsset,
+} from "./type.ts";
 import {
   DepositSchema,
   MutualFundSchema,
   PhysicalStockSchema,
   SalePointSchema,
+  SonySchema,
   TotalAssetSchema,
 } from "./type.ts";
 import { delay } from "@std/async/delay";
@@ -20,24 +28,133 @@ import { z } from "npm:zod@3.23.8";
 import { InfluxDB, Point } from "npm:@influxdata/influxdb-client";
 
 const headless = true;
-const signInPage = "https://moneyforward.com/me";
+const signInPageMF = "https://moneyforward.com/me";
+const signInPageSony = "https://cs.sonylife.co.jp/lpv/yf1p/sca/PYFW1011.seam";
 
 const browser = await launch({
   headless,
 });
-const page = await browser.newPage(signInPage);
 
-await signin(page);
+// Sony
+const pageSony = await browser.newPage(signInPageSony);
+await signinSony(pageSony);
 
-await updateAll(page);
-
-const portfolioButton = await page.$(`a[href="/bs/portfolio"]`);
+const keiyakuShokaiButton = await pageSony.$(`a[href="../../yh1p/scb/PYHW0010.seam?ETRFLG=1"]`);
 await Promise.all([
-  page.waitForNavigation(),
+  pageSony.waitForNavigation(),
+  keiyakuShokaiButton!.click(),
+]);
+
+// harune.
+const haruneButton = await pageSony.$(
+  `a[href="../../yh3p/scb/PYHW0310.seam?index=0&ETRFLG=1&SDP=1"]`,
+);
+await Promise.all([
+  pageSony.waitForNavigation(),
+  haruneButton!.click(),
+]);
+
+const haruneHaraimodoshiButton = await pageSony.$(`a[href="#"]`);
+await Promise.all([
+  pageSony.waitForNavigation(),
+  haruneHaraimodoshiButton!.click(),
+]);
+
+const haruneTables = tabletojson.convert(
+  await pageSony.evaluate(() => {
+    return document.body.innerHTML;
+  }),
+);
+// console.log({ haruneTables });
+
+const haruneYoteigaku = Object.values(haruneTables[2].pop()).pop();
+console.log({ haruneYoteigaku });
+
+await pageSony.goBack();
+await pageSony.goBack();
+
+// ritsu
+const ritsuButton = await pageSony.$(
+  `a[href="../../yh3p/scb/PYHW0310.seam?index=2&ETRFLG=1&SDP=1"]`,
+);
+await Promise.all([
+  pageSony.waitForNavigation(),
+  ritsuButton!.click(),
+]);
+
+const ritsuHaraimodoshiButton = await pageSony.$(`a[href="#"]`);
+await Promise.all([
+  pageSony.waitForNavigation(),
+  ritsuHaraimodoshiButton!.click(),
+]);
+
+const ritsuTables = tabletojson.convert(
+  await pageSony.evaluate(() => {
+    return document.body.innerHTML;
+  }),
+);
+// console.log({ ritsuTables });
+
+const ritsuYoteigaku = Object.values(ritsuTables[2].pop()).pop();
+console.log({ ritsuYoteigaku });
+
+await pageSony.goBack();
+await pageSony.goBack();
+
+// yuki
+const yukiButton = await pageSony.$(
+  `a[href="../../yh3p/scb/PYHW0310.seam?index=1&ETRFLG=1&SDP=1"]`,
+);
+await Promise.all([
+  pageSony.waitForNavigation(),
+  yukiButton!.click(),
+]);
+
+const yukiHaraimodoshiButton = await pageSony.$(`a[href="#"]`);
+await Promise.all([
+  pageSony.waitForNavigation(),
+  yukiHaraimodoshiButton!.click(),
+]);
+
+const yukiTables = tabletojson.convert(
+  await pageSony.evaluate(() => {
+    return document.body.innerHTML;
+  }),
+);
+// console.log({ yukiTables });
+
+const yukiYoteigaku = Object.values(yukiTables[2].pop()).pop();
+console.log({ yukiYoteigaku });
+
+const sony = [
+  SonySchema.parse({
+    name: "harune",
+    price: haruneYoteigaku,
+  }),
+  SonySchema.parse({
+    name: "ritsu",
+    price: ritsuYoteigaku,
+  }),
+  SonySchema.parse({
+    name: "yuki",
+    price: yukiYoteigaku,
+  }),
+];
+console.log({ sony });
+
+const pageMF = await browser.newPage(signInPageMF);
+
+await signinMF(pageMF);
+
+await updateAll(pageMF);
+
+const portfolioButton = await pageMF.$(`a[href="/bs/portfolio"]`);
+await Promise.all([
+  pageMF.waitForNavigation(),
   portfolioButton!.click(),
 ]);
 
-const pageHtml = await page.evaluate(() => {
+const pageHtml = await pageMF.evaluate(() => {
   return document.body.innerHTML;
 });
 
@@ -320,16 +437,23 @@ for (const aggregatedSalePoint of aggregatedSalePoints) {
   writeApi.writePoint(point);
 }
 
+// Point Sony
+for (const s of sony) {
+  const point = new Point("sony")
+    .tag("name", s.name)
+    .floatField("price", s.price)
+    .timestamp(now);
+  writeApi.writePoint(point);
+}
+
 await writeApi.flush();
 await writeApi.close();
 
-// await delay(10000000);
-
 await browser.close();
 
-async function signin(page: Page): Promise<void> {
+async function signinMF(page: Page): Promise<void> {
   const toppage = await page.screenshot();
-  Deno.writeFileSync("toppage.png", toppage);
+  Deno.writeFileSync("toppage_mf.png", toppage);
 
   const signInButton = await page.$(`a[href="/sign_in"]`);
   await Promise.all([
@@ -362,5 +486,25 @@ async function updateAll(page: Page): Promise<void> {
   await Promise.all([
     page.waitForNavigation(),
     updateAllButton!.click(),
+  ]);
+}
+
+async function signinSony(page: Page): Promise<void> {
+  const toppage = await page.screenshot();
+  Deno.writeFileSync("toppage_sony.png", toppage);
+
+  const user = z.string().parse(Deno.env.get("SONYLIFE_USER"));
+  const pass = z.string().parse(Deno.env.get("SONYLIFE_PASS"));
+
+  const userInput = await page.$(`input[id="j_id21:j_id25:acctId"]`);
+  await userInput!.type(user, { delay: 10 });
+
+  const passInput = await page.$(`input[id="j_id21:j_id32:pwd1"]`);
+  await passInput!.type(pass, { delay: 10 });
+
+  const submitButton = await page.$(`input[id="j_id21:logon1_kss_osm_privileged"]`);
+  await Promise.all([
+    page.waitForNavigation(),
+    submitButton!.click(),
   ]);
 }
