@@ -1,7 +1,7 @@
 // =============================================================================
 // File        : main.ts
 // Author      : yukimemi
-// Last Change : 2024/08/04 14:23:31.
+// Last Change : 2024/08/11 20:27:37.
 // =============================================================================
 
 import "@std/dotenv/load";
@@ -596,6 +596,19 @@ async function signinSmtb(page: Page): Promise<void> {
     page.waitForNavigation(),
     submitButton!.click(),
   ]);
+
+  try {
+    const userInput = await page.$(`input[name="userId"]`);
+    await userInput!.type(user, { delay: 10 });
+
+    const passInput = await page.$(`input[name="password"]`);
+    await passInput!.type(pass, { delay: 10 });
+    const submitButton2 = await page.$(`input[type="SUBMIT"]`);
+    await Promise.all([
+      page.waitForNavigation(),
+      submitButton2!.click(),
+    ]);
+  } catch {}
 
   const submitButton2 = await page.$(`input[type="SUBMIT"]`);
   await Promise.all([
