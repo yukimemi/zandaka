@@ -1,7 +1,8 @@
+/// <reference lib="dom" />
 // =============================================================================
 // File        : main.ts
 // Author      : yukimemi
-// Last Change : 2024/08/11 20:27:37.
+// Last Change : 2024/08/12 02:07:44.
 // =============================================================================
 
 import "@std/dotenv/load";
@@ -608,6 +609,7 @@ async function signinSmtb(page: Page): Promise<void> {
       page.waitForNavigation(),
       submitButton2!.click(),
     ]);
+    // deno-lint-ignore no-empty
   } catch {}
 
   const submitButton2 = await page.$(`input[type="SUBMIT"]`);

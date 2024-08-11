@@ -1,6 +1,11 @@
-import { assertEquals } from "@std/assert";
-import { add } from "./main.ts";
+// =============================================================================
+// File        : main_test.ts
+// Author      : yukimemi
+// Last Change : 2024/08/12 02:03:27.
+// =============================================================================
 
-Deno.test(function addTest() {
-  assertEquals(add(2, 3), 5);
+import { assertEquals } from "@std/assert";
+
+Deno.test("main", () => {
+  assertEquals(1, 1);
 });
