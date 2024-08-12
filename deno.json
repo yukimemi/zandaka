@@ -1,7 +1,7 @@
 {
   "tasks": {
     "check": "deno check ./**/*.ts",
-    "run": "deno run -A",
+    "run": "deno run -A main.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",
     "test": "deno test -A",
