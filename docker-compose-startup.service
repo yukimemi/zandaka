@@ -1,0 +1,11 @@
+[Unit]
+Description=Start docker compose on boot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/yukimemi/src/github.com/yukimemi/zandaka
+ExecStart=/usr/bin/docker compose -f compose.yaml up -d
+
+[Install]
+WantedBy=multi-user.target
